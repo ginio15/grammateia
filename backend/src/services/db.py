@@ -2,7 +2,16 @@ import os
 import sqlite3
 from pathlib import Path
 
-PREFERRED_PATH = Path("C:/RegistryApp/data/app.db")
+# Cross-platform data directory
+def get_data_dir() -> Path:
+    """Get the appropriate data directory for the current platform"""
+    if os.name == 'nt':  # Windows
+        return Path("C:/RegistryApp/data")
+    else:  # macOS/Linux
+        # Use a data directory in the project root
+        return Path.cwd() / "data"
+
+PREFERRED_PATH = get_data_dir() / "app.db"
 
 
 def resolve_db_path() -> Path:
@@ -33,52 +42,34 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def init_db():
+def ensure_db():
+    """Ensure database exists and has correct schema, without deleting existing data"""
+    db_path = resolve_db_path()
+    
     conn = get_connection()
-    cur = conn.cursor()
-    # Minimal schema; will be expanded later per data-model.md
-    cur.executescript(
-        """
-        CREATE TABLE IF NOT EXISTS registrations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            category TEXT NOT NULL,
-            issuer TEXT NOT NULL,
-            referenceNumber TEXT NOT NULL,
-            subject TEXT NOT NULL,
-            recipient TEXT,
-            offices TEXT,
-            protocolNumber INTEGER NOT NULL,
-            draftNumber INTEGER,
-            entryDate TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            deletedFlag INTEGER NOT NULL DEFAULT 0,
-            deletedAt TEXT
-        );
+    schema_path = Path(__file__).parent.parent / "models" / "schema.sql"
+    with open(schema_path, "r") as f:
+        schema = f.read()
+    
+    # Execute schema - uses "CREATE TABLE IF NOT EXISTS" so it's safe
+    conn.executescript(schema)
+    conn.commit()
+    conn.close()
 
-        CREATE TABLE IF NOT EXISTS numbering_sequences (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL,
-            category TEXT,
-            year INTEGER,
-            nextNumber INTEGER NOT NULL,
-            lastUpdated TEXT
-        );
 
-        CREATE TABLE IF NOT EXISTS audit_events (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            action TEXT NOT NULL,
-            registrationId INTEGER NOT NULL,
-            timestamp TEXT NOT NULL,
-            username TEXT NOT NULL
-        );
+def init_db():
+    """Initialize database from scratch - WARNING: This deletes existing data!"""
+    db_path = resolve_db_path()
+    if db_path.exists():
+        # This is a simple approach for a single-user, local app.
+        # In a real-world scenario, a proper migration tool should be used.
+        db_path.unlink()
 
-        CREATE TABLE IF NOT EXISTS archive_batches (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            month TEXT NOT NULL,
-            createdAt TEXT NOT NULL,
-            itemsMoved INTEGER NOT NULL
-        );
-        """
-    )
+    conn = get_connection()
+    schema_path = Path(__file__).parent.parent / "models" / "schema.sql"
+    with open(schema_path, "r") as f:
+        schema = f.read()
+    
+    conn.executescript(schema)
     conn.commit()
     conn.close()

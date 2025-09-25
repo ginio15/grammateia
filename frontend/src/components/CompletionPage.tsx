@@ -6,9 +6,10 @@ interface CompletionPageProps {
   data: any;
   onNavigate: (screen: string) => void;
   onSaveEntry: (entry: any) => void;
+  isLoading?: boolean;
 }
 
-export function CompletionPage({ data, onNavigate, onSaveEntry }: CompletionPageProps) {
+export function CompletionPage({ data, onNavigate, onSaveEntry, isLoading = false }: CompletionPageProps) {
   const isOutgoing = data.type.includes("outgoing");
   
   const getTitle = () => {
@@ -25,7 +26,6 @@ export function CompletionPage({ data, onNavigate, onSaveEntry }: CompletionPage
 
   const handleSave = () => {
     onSaveEntry(data);
-    alert("Η καταχώριση ολοκληρώθηκε επιτυχώς!");
   };
 
   const handleNewEntry = () => {
@@ -88,9 +88,10 @@ export function CompletionPage({ data, onNavigate, onSaveEntry }: CompletionPage
           <div className="grid grid-cols-2 gap-4 mb-4">
             <Button 
               onClick={handleSave}
-              className="bg-green-600 hover:bg-green-700 text-white"
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700 text-white disabled:opacity-50"
             >
-              Καταχώριση
+              {isLoading ? "Αποθήκευση..." : "Καταχώριση"}
             </Button>
             <Button 
               onClick={handleNewEntry}
