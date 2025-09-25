@@ -1,0 +1,186 @@
+openapi: 3.1.0
+info:
+  title: Offline Registry App API
+  version: 0.1.0
+servers:
+  - url: http://127.0.0.1:8733
+paths:
+  /meta/fields:
+    get:
+      summary: Get bilingual field labels
+      responses:
+        '200':
+          description: Bilingual field labels
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  properties:
+                    el:
+                      type: string
+                    en:
+                      type: string
+  /meta/offices:
+    get:
+      summary: Get offices list
+      responses:
+        '200':
+          description: Offices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    code:
+                      type: string
+                    label:
+                      type: string
+  /registrations/{category}:
+    post:
+      summary: Create a registration for a category
+      parameters:
+        - name: category
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [common_incoming, common_outgoing, confidential_incoming, confidential_outgoing, signals_incoming, signals_outgoing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegistrationCreate'
+      responses:
+        '201':
+          description: Created registration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Registration'
+        '400':
+          description: Validation error
+  /registrations:
+    get:
+      summary: List registrations filtered by month and optional category
+      parameters:
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: string
+            pattern: "^\\d{4}-\\d{2}$"
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [common_incoming, common_outgoing, confidential_incoming, confidential_outgoing, signals_incoming, signals_outgoing]
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+      responses:
+        '200':
+          description: Paginated registrations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationPage'
+  /registrations/{id}:
+    delete:
+      summary: Soft delete a registration
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Soft deleted
+        '404':
+          description: Not found
+  /admin/archive/run:
+    post:
+      summary: Archive previous month into /archive/YYYY-MM.db
+      responses:
+        '200':
+          description: Archive summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  month:
+                    type: string
+                  itemsMoved:
+                    type: integer
+components:
+  schemas:
+    RegistrationCreate:
+      type: object
+      required: [issuer, referenceNumber, subject]
+      properties:
+        issuer:
+          type: string
+          maxLength: 255
+        referenceNumber:
+          type: string
+          maxLength: 255
+        subject:
+          type: string
+          maxLength: 255
+        recipient:
+          type: string
+          maxLength: 255
+          description: Required for outgoing categories
+        offices:
+          type: array
+          items:
+            type: string
+          description: Required non-empty for incoming categories
+        entryDate:
+          type: string
+          format: date
+          description: Auto-filled to today by server if missing
+    Registration:
+      type: object
+      properties:
+        id: { type: integer }
+        category: { type: string }
+        issuer: { type: string }
+        referenceNumber: { type: string }
+        subject: { type: string }
+        recipient: { type: string, nullable: true }
+        offices:
+          type: array
+          items: { type: string }
+          nullable: true
+        protocolNumber: { type: integer }
+        draftNumber: { type: integer, nullable: true }
+        entryDate: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        deletedFlag: { type: boolean }
+        deletedAt: { type: string, format: date-time, nullable: true }
+    RegistrationPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Registration'
+        page:
+          type: integer
+        pageSize:
+          type: integer
+          example: 100
+        total:
+          type: integer
