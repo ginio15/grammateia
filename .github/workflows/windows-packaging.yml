@@ -1,0 +1,36 @@
+name: Windows Packaging
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install pyinstaller
+
+      - name: Build with PyInstaller
+        run: |
+          pyinstaller backend/packaging/GrammatEIARegistry.spec --noconfirm
+
+      - name: Run packaging smoke test
+        env:
+          REGISTRY_APP_EXE: dist/GrammatEIARegistry/GrammatEIARegistry.exe
+        run: |
+          python -m pytest backend/tests/packaging/test_smoke_windows.py -q
